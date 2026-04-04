@@ -34,4 +34,4 @@ Config/testthat/edition: 3
 biocViews: Software, StatisticalMethod, GraphAndNetwork, Bayesian, Pathways
 VignetteBuilder: knitr
 SystemRequirements: GNU Scientific Library (GSL)
-OS_type: unix
+Config/Bioconductor/UnsupportedPlatforms: windows
