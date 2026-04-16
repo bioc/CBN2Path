@@ -97,12 +97,13 @@ hcbnSingle <- function(datasetObj,
 #' @param annealingSteps Number of simulated annealing steps.
 #' @param epsilon Value of eps for CT-CBN model selection. Requires both pattern and lambda data in input `Spock`.
 #' @param nCores Maximum number of threads to use to parallelize.
+#' @param progressBar Print out progress bar; default is FALSE
 #'
 #' @return A matrix of results.
 #' @export
 #'
 #' @examples
-#' examplePath <- getExamples()[1]
+#' examplePath <- getExamples()[3]
 #' bc <- Spock$new(
 #'     poset = readPoset(examplePath)$sets,
 #'     numMutations = readPoset(examplePath)$mutations,
@@ -115,7 +116,8 @@ hcbn <- function(datasets,
                  temp = 0,
                  annealingSteps = 0,
                  epsilon = 2,
-                 nCores = 1) {
+                 nCores = 1,
+                 progressBar = FALSE) {
 
     if (inherits(datasets, "Spock") && length(datasets$poset) == 1) {
       return(hcbnSingle(datasets, anneal, temp, annealingSteps, epsilon))
@@ -136,13 +138,17 @@ hcbn <- function(datasets,
     done <- 0
     outMatrixBuf <- vector("list", length(datasets))
 
-    if (exists("MulticoreParam", mode = "function")) {
-      p <- MulticoreParam(workers = min(length(datasets), nCores))
-      rets <- bplapply(datasets, \(x) hcbnSingle(x, anneal, temp, annealingSteps, epsilon), BPOPTIONS = bpoptions(progressbar = TRUE), BPPARAM = p)
+    if (exists("MulticoreParam", mode = "function") || exists("SnowParam", mode = "function")) {
+      if(Sys.info()["sysname"] == "Windows") {
+        p <- SnowParam(workers = min(length(datasets), nCores))
+      } else {
+        p <- MulticoreParam(workers = min(length(datasets), nCores))
+      }
+      rets <- bplapply(datasets, \(x) hcbnSingle(x, anneal, temp, annealingSteps, epsilon), BPOPTIONS = bpoptions(progressbar = progressBar), BPPARAM = p)
     } else {
-      message("MulticoreParam not found — running sequentially.")
+      message("Parallelization not found - running sequentially.")
       rets <- lapply(datasets, \(x) hcbnSingle(x, anneal, temp, annealingSteps, epsilon))
     }
-    
+
     return(rets)
 }

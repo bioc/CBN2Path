@@ -126,18 +126,20 @@ ctcbnSingle <- function(dataset,
 #' @param numDrawnSamples If > 0, the number of samples to draw from the model. If zero (default), the model will be learned from data.
 #' @param numEmRuns Number of em runs.
 #' @param nCores Maximum number of threads to use to parallelize.
+#' @param progressBar Print out progress bar; default is FALSE
 #'
 #' @return A matrix of results.
 #' @export
 #'
 #' @examples
-#' examplePath <- getExamples()[1]
+#' examplePath <- getExamples()[3]
 #' bc <- Spock$new(
 #'     poset = readPoset(examplePath)$sets,
 #'     numMutations = readPoset(examplePath)$mutations,
 #'     genotypeMatrix = readPattern(examplePath)
 #' )
 #' ctcbn(bc)
+#' ctcbn(c(bc, bc, bc))
 ctcbn <- function(datasets,
                   bootstrapSamples = 0,
                   randomSeed = 1,
@@ -145,7 +147,8 @@ ctcbn <- function(datasets,
                   epsilon = 2,
                   numDrawnSamples = 0,
                   numEmRuns = 1,
-                  nCores = 1) {
+                  nCores = 1,
+                  progressBar = FALSE) {
     if (inherits(datasets, "Spock") && length(datasets$poset) == 1) {
       return(ctcbnSingle(datasets, bootstrapSamples, randomSeed, samplingRate, epsilon, numDrawnSamples, numEmRuns))
     } else if (inherits(datasets, "Spock")) {
@@ -165,11 +168,16 @@ ctcbn <- function(datasets,
     done <- 0
     outMatrixBuf <- vector("list", length(datasets))
 
-    if (exists("MulticoreParam", mode = "function")) {
-      p <- MulticoreParam(workers = min(length(datasets), nCores))
-      rets <- bplapply(datasets, \(x) ctcbnSingle(x, bootstrapSamples, randomSeed, samplingRate, epsilon, numDrawnSamples, numEmRuns), BPOPTIONS = bpoptions(progressbar = TRUE), BPPARAM = p)
+
+    if (exists("MulticoreParam", mode = "function") || exists("SnowParam", mode = "function")) {
+      if(Sys.info()["sysname"] == "Windows") {
+        p <- SnowParam(workers = min(length(datasets), nCores))
+      } else {
+        p <- MulticoreParam(workers = min(length(datasets), nCores))
+      }
+      rets <- bplapply(datasets, \(x) ctcbnSingle(x, bootstrapSamples, randomSeed, samplingRate, epsilon, numDrawnSamples, numEmRuns), BPOPTIONS = bpoptions(progressbar = progressBar), BPPARAM = p)
     } else {
-      message("MulticoreParam not found — running sequentially.")
+      message("Parallelization not found - running sequentially.")
       rets <- lapply(datasets, \(x) ctcbnSingle(x, bootstrapSamples, randomSeed, samplingRate, epsilon, numDrawnSamples, numEmRuns))
     }
 
