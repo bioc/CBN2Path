@@ -425,32 +425,33 @@ pathProbCBN <- function(dag, lambda, x) {
             finalIndex <- which(indx == index)
             if (allowedSet[finalIndex] == 0) {
                 flag <- 0
+                break
             }
         }
-        for (j1 in 1:x) {
+        if (flag==0){prob[i1] <- 0}
+        else {
+          for (j1 in 1:x) {
             set1 <- which(geno[j1, ] == 1)
             set2 <- which(geno[j1 + 1, ] == 1)
             indxLambda <- setdiff(set2, set1)
             sn <- which(geno[j1, ] == 0)
             sn2 <- numeric(length(sn))
             for (kaka in 1:length(sn)) {
-                tempIndex <- 0
-                for (kk in 1:x) {
-                    tempIndex <- tempIndex + 2^(kk - 1) * geno[j1, kk]
-                }
-                tempIndex <- tempIndex + 2^(sn[kaka] - 1)
-                finalIndex <- which(indx == tempIndex)
-                sn2[kaka] <- allowedSet[finalIndex]
+              tempIndex <- 0
+              for (kk in 1:x) {
+                tempIndex <- tempIndex + 2^(kk - 1) * geno[j1, kk]
+              }
+              tempIndex <- tempIndex + 2^(sn[kaka] - 1)
+              finalIndex <- which(indx == tempIndex)
+              sn2[kaka] <- allowedSet[finalIndex]
             }
             snn <- sn[which(sn2 == 1)]
             t <- sum(lambda[(snn + 1)])
             s <- lambda[(indxLambda + 1)]
             temp1 <- temp1 * (s / t)
+          }
+          prob[i1] <- temp1
         }
-        if (flag == 0) {
-            temp1 <- 0
-        }
-        prob[i1] <- temp1
     }
     prob <- as.numeric(prob)
     return(prob)
