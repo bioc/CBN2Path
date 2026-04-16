@@ -687,7 +687,7 @@ pathProbQuartetRCBN <- function(gMat) {
         p[i, ] <- pathProbCBN(dag, lambda, 4)
     }
     w1 <- posetWeightingRCBN(logLik)
-    pathProb1 <- apply((w1 * p), 2, sum) / sum(w1)
+    pathProb1 <- apply((w1 * p), 2, sum,na.rm=TRUE) / sum(w1)
     pathProb2 <- pathNormalization(pathProb1, 4)
     return(pathProb2)
 }
