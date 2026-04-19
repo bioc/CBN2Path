@@ -1,6 +1,6 @@
 Package: CBN2Path
 Title:  CBN2Path: an R/Bioconductor package for the analysis of cancer progression pathways using Conjunctive Bayesian Networks
-Version: 1.1.6
+Version: 1.1.7
 Author: William Choi-Kim [aut, cre], Sayed-Rzgar Hosseini [aut, cre]
 Maintainer: William Choi-Kim <william@williamck.com>, Sayed-Rzgar Hosseini <razgar@gmail.com>
 Description: CBN2Path package provides a unifying interface to facilitate CBN-based quantification, analysis and visualization of cancer progression pathways. 
