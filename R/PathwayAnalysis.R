@@ -540,11 +540,11 @@ pathProbGeneralCTCBN <- function(gMat) {
 pathProbCTCBN <- function(gMat) {
   m <- dim(gMat)[2]
   if (m == 4){
-    PathProb <- pathProbQuartetCTCBN(gMat)
+    pathProb <- pathProbQuartetCTCBN(gMat)
   } else {
-    PathProb <- pathProbGeneralCTCBN(gMat)
+    pathProb <- pathProbGeneralCTCBN(gMat)
   }  
-  return(PathProb)
+  return(pathProb)
 }
 
 
@@ -633,11 +633,11 @@ pathProbGeneralHCBN <- function(gMat) {
 pathProbHCBN <- function(gMat) {
   m <- dim(gMat)[2]
   if (m == 4){
-    PathProb <- pathProbQuartetHCBN(gMat)
+    pathProb <- pathProbQuartetHCBN(gMat)
   } else {
-    PathProb <- pathProbGeneralHCBN(gMat)
+    pathProb <- pathProbGeneralHCBN(gMat)
   }  
-  return(PathProb)
+  return(pathProb)
 }
 
 
@@ -1069,10 +1069,8 @@ pathProbEnsembleRCBN <- function(pathProbs, nn, outputDir){
     }
     pathProbs <- temp
     pathProbR <- pathProbs
-    finalFileName <- paste0(outputDir, "/pathProbR", n, ".RData")
-    save(pathProbR, file = finalFileName)
-    print(paste0("quantifying pathways of length n=",n," is done."))
   }
+  return(pathProbR)
 }
 
 
@@ -1255,8 +1253,8 @@ pathProbGeneralBCBN <- function(gMat) {
     lambda <- as.numeric(results$lambda)
     pathProbTemp[i] <- pathProbCBN(dags[[i]], lambda, m)
   }
-  PathProb <- apply((wt * pathProbTemp), 2, sum) / sum(wt)  
-  return(PathProb)
+  pathProb <- apply((wt * pathProbTemp), 2, sum) / sum(wt)  
+  return(pathProb)
 }
 
 
@@ -1275,11 +1273,11 @@ pathProbGeneralBCBN <- function(gMat) {
 pathProbBCBN <- function(gMat) {
   m <- dim(gMat)[2]
   if (m == 4){
-    PathProb <- pathProbQuartetBCBN(gMat)
+    pathProb <- pathProbQuartetBCBN(gMat)
   } else {
-    PathProb <- pathProbGeneralBCBN(gMat)
+    pathProb <- pathProbGeneralBCBN(gMat)
   }  
-  return(PathProb)
+  return(pathProb)
 }
 
 
