@@ -4,12 +4,12 @@
 \alias{pathProbEnsembleRCBN}
 \title{pathProbEnsembleRCBN}
 \usage{
-pathProbEnsembleRCBN(pathProbs, nn, outputDir)
+pathProbEnsembleRCBN(gMat, nn)
 }
 \arguments{
-\item{pathProbs}{is a matrix containing the probabilities of pathways of length 4}
-
 \item{nn}{is the total number of genes (mutations) considered}
+
+\item{pathProbs}{is a matrix containing the probabilities of pathways of length 4}
 
 \item{outputDir}{full path to the directory, where the final files will be saved.}
 }
@@ -20,11 +20,7 @@ The list of probability matrices of all sub-pathways of n, where n is between 5 
 pathProbEnsembleRCBN
 }
 \examples{
-m <- 10
-n <- 4
-temp <- matrix(runif(choose(m, n) * factorial(n)), choose(m, n), factorial(n))
-probMatrix <- temp / apply(temp, 1, sum)
-pathProbs <- pathProbAssigner(probMatrix, m, n)
-outputDir <- getwd()
-pathProber(pathProbs, m, outputDir)
+set.seed(100)
+gMat <- matrix(sample(c(0, 1), 150, replace = TRUE), 30, 5)
+pathProbEnsembleRCBN(gMat,5)
 }

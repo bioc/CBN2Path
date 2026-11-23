@@ -1039,20 +1039,17 @@ pathProber<-function(pathN, pathsX, pathProbsX){
 #' @export
 #'
 #' @examples
-#' m <- 10
-#' n <- 4
-#' temp <- matrix(runif(choose(m, n) * factorial(n)), choose(m, n), factorial(n))
-#' probMatrix <- temp / apply(temp, 1, sum)
-#' pathProbs <- pathProbAssigner(probMatrix, m, n)
-#' outputDir <- getwd()
-#' pathProber(pathProbs, m, outputDir)
-pathProbEnsembleRCBN <- function(pathProbs, nn, outputDir){
-  nQuartets <- choose(nn, 4)
-  d1 <- dim(pathProbs)[1] 
-  d2 <- dim(pathProbs)[2] 
-  if ((d1 != nQuartets) || (d2 != factorial(4))){
-    print("the Initial matrix of (quartet) pathway probabilities is not of right dimension!")
-    return(NULL)
+#' set.seed(100)
+#' gMat <- matrix(sample(c(0, 1), 150, replace = TRUE), 30, 5)
+#' pathProbEnsembleRCBN(gMat,5)
+pathProbEnsembleRCBN <- function(gMat,nn){
+  d<-dim(gMat)[2]
+  nQuartets <- choose(d, 4)
+  subSets<-t(combn(1:d, 4))
+  pathProbs<-matrix(0,nQuartets,factorial(4))
+  for (i in 1:nQuartets){
+    gMat2<-gMat[,subSets[i,]]
+    pathProbs[i,]<-pathProbQuartetRCBN (gMat2)
   }
   n <- 4
   while (n < nn){
