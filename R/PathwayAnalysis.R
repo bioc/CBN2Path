@@ -1231,18 +1231,18 @@ mat2Dag <- function(mat, x){
 #' pathProbGeneralBCBN(gMat)
 pathProbGeneralBCBN <- function(gMat) {
   m <- dim(gMat)[2]
-  results <- bcbn_mcmc(data = gMat, n_samples = 25000, theta = 0, epsilon = 0.05, n_chains = 4,thin = 10, Max_L = 1000, n_cores = 1)
+  mat <- bcbn_mcmc(data = gMat, n_samples = 25000, theta = 0, epsilon = 0.05, n_chains = 4,thin = 10, Max_L = 1000, n_cores = 1)
   indxS <- numeric(100000)
-  for (i in 1:100000){indxS[i] <- binarizer(results[[i]], m)}
+  for (i in 1:100000){indxS[i] <- binarizer(mat[[i]], m)}
   uu <- unique(indxS)
   ll <- length(uu)
   wt <- numeric(ll)
-  pathProbTemp <- numeric(ll)
+  pathProbTemp <- matrix(0,ll,factorial(m))
   dags <- list()
   for (i in 1:ll){
     wt[i] <- (length(which(indxS == uu[i])) / 100000)
     tempIndx <- which(indxS == uu[i])[1]
-    tempMat <- results[[tempIndx]]
+    tempMat <- mat[[tempIndx]]
     dags[[i]] <- mat2Dag(tempMat, m)
     bc <- Spock$new(
       poset = dags[[i]],
@@ -1251,7 +1251,7 @@ pathProbGeneralBCBN <- function(gMat) {
     )
     results <- ctcbn(bc)
     lambda <- as.numeric(results$lambda)
-    pathProbTemp[i] <- pathProbCBN(dags[[i]], lambda, m)
+    pathProbTemp[i,] <- pathProbCBN(dags[[i]], lambda, m)
   }
   pathProb <- apply((wt * pathProbTemp), 2, sum) / sum(wt)  
   return(pathProb)
