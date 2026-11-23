@@ -19,7 +19,7 @@ knitr::opts_chunk$set(
 
 ## Introduction
 
-Tumorigenesis is a stepwise process driven by a sequence of molecular changes that are described as pathways of cancer progression. Conjunctive Bayesian Networks (CBN) are probabilistic graphical models designed for the analysis and modeling of these pathways [1]. CBN models have evolved into different varieties such as CT-CBN [2], H-CBN [3], B-CBN [4], and R-CBN [5], each addressing different aspects of this task. However, the software corresponding to these methods is not well integrated because they are implemented in different languages with heterogeneous input and output formats. This necessitates a unifying platform that integrates these models and enables the standardization of input and output formats. Evam-tools [6] is an R package that takes the initial steps towards this end. However, it does not include the B-CBN model or the recently developed R-CBN algorithm, which focuses on robust inference of cancer progression pathways [5]. Importantly, the B-CBN and R-CBN algorithms for pathway quantification necessitate exhaustive consideration and weighting of all potential dependency structures (posets) within the mutational quartets. This requires reimplementation of the CBN models and adjustment of downstream pathway analysis and modeling functions. Therefore, here we introduce the **CBN2Path** R package that not only includes the original implementation of the CBN models (e.g., CT-CBN and H-CBN) in a unifying interface but also accommodates the necessary modifications to support robust CBN algorithms (e.g., B-CBN and R-CBN). Importantly, CBN2Path includes a collection of functions required to quantify predictability [7], analyze robustness [5], and visualize mutational pathways from pre-processed cross-sectional genomic data. It is important to note that the R-CBN method has great potential for wide application in future predictive models because of its unique ability to offer an optimal balance between robustness and predictability [5]. Thus, we anticipate that CBN2Path will be a commonly used package in the field, particularly by providing a platform to facilitate future applications of the R-CBN model.
+Tumorigenesis is a stepwise process driven by a sequence of molecular changes that are described as pathways of cancer progression. Conjunctive Bayesian Networks (CBN) are probabilistic graphical models designed for the analysis and modeling of these pathways [1]. CBN models have evolved into different varieties such as CT-CBN [2], H-CBN [3], B-CBN [4], and R-CBN [5], each addressing different aspects of this task. However, the software corresponding to these methods is not well integrated because they are implemented in different languages with heterogeneous input and output formats. This necessitates a unifying platform that integrates these models and enables the standardization of input and output formats. Importantly, the B-CBN and R-CBN algorithms for pathway quantification need to weight a large space of potential dependency structures (posets), which requires reimplementation of the CBN models and adjustment of downstream pathway analysis and modeling functions. Therefore, here we introduce the **CBN2Path** R package that not only includes the original implementation of the CBN models (e.g., CT-CBN and H-CBN) in a unifying interface but also accommodates the necessary modifications to support robust CBN algorithms (e.g., B-CBN and R-CBN). Importantly, CBN2Path includes a collection of functions required to quantify predictability [6], analyze robustness [5], and visualize mutational pathways from pre-processed cross-sectional genomic data. It is important to note that the R-CBN method has great potential for wide application in future predictive models, because of its ability to retain robust ranking of pathways and its potential to reflect the underlying fitness landscapes in the presence of genotypic errors [5]. Thus, we anticipate that CBN2Path will be a commonly used package in the field that will provide a platform facilitating future applications of the R-CBN model.
 
 ## Installation
 
@@ -36,6 +36,7 @@ library(CBN2Path)
 ```
 
 ```{r include=FALSE}
+library(rBCBN)
 library(TCGAbiolinks)
 library(BiocParallel)
 ```
@@ -47,24 +48,27 @@ If you use the CBN2Path package, please cite the paper formally as follows:
 Choi-Kim W and Hosseini SR. CBN2Path: an R/Bioconductor package for the analysis of cancer progression pathways using Conjunctive Bayesian Networks. F1000Research 2025, 14:834 (https://doi.org/10.12688/f1000research.168810.1) 
 
 
-## Preparing the genotype matrix
+## TCGA data processing
 
-The genotype matrix is a binary matrix in which each row represents a sample and each column represents a gene. The element (i,j) of the matrix is 1 if the i-th sample contains a nonsense or missense mutation in the j-th gene, and zero otherwise. In the example below, a genotype matrix is generated for 414 Bladder Urothelial Carcinoma samples in the "TCGA-BLCA" data. Note that we in this example we have used "TP53", "ARID1A", "KDM6A" and "PIK3CA" as our genes of interest to genotype the samples. 
+The genotype matrix is a binary matrix in which each row represents a sample and each column represents a gene. The element (i,j) of the matrix is 1 if the i-th sample contains a nonsense or missense mutation in the j-th gene, and zero otherwise. In the example below, a genotype matrix is generated for 414 Bladder Urothelial Carcinoma samples in the "TCGA-BLCA" data. Note that in the example below, for genotyping the 414 "TCGA-BLCA" samples, we have used a set of four genes including "TP53", "ARID1A", "KDM6A" and "PIK3CA". Note that the **getRawTCGAData** function is used to retrieve the raw TCGA data for a given cancer type, and then **generateTCGAmatrix** is used to generate the genotype matrix according to a given set of driver genes.   
 
-```{r message=FALSE, include=FALSE}
+```{r message=FALSE}
 # Obtaining the "TCGA-BLCA" data
 rawData <- getRawTCGAData("TCGA-BLCA")
 
 # Specifying the genes
 genes <- c("TP53","ARID1A","KDM6A","PIK3CA")
+#genes <- c("TP53","ARID1A","KDM6A","PIK3CA","RB1","EP300")
 
-# Generating the genotype matrix
+# Generating the genotype matrices
 gMat <- generateTCGAMatrix(rawData, genes)
+#gMat <- generateTCGAMatrix(rawData, genes)
 ```
 
 
 ## The CT-CBN model
 
+### Executing the model
 CBN2Path provides the R interface for the continuous-time CBN model (CT-CBN), which was originally implemented in C programming language [2].
 
 CT-CBN needs the following three inputs:
@@ -95,19 +99,32 @@ bc <- Spock$new(
 resultsC <- ctcbnSingle(bc)
 ```
 
-The directed acyclic graph representation of the input poset can be visualized using the **`visualizeCBNModel`** function as follows:
 
-```{r fig.width=4.25, fig.height=4.25}
-visualizeCBNModel(dag)
-```
+### Parameter estimation
 
-Furthermore, the Lambda parameters and the corresponding log likelihood can be obtained as:
+The Lambda parameters and the corresponding log likelihood can be obtained as:
 
 ```{r}
 mlLambda <- resultsC$lambda
 logLikelihood <- resultsC$summary["Loglike"]
 ```
 
+### Poset visualization 
+Furthermore, the directed acyclic graph representation (DAG) of the input poset can be visualized using the **`visualizeCBNModel`** function.
+For example, the initial DAG can be visualized as follows:
+```{r fig.width=4.25, fig.height=4.25}
+visualizeCBNModel(dag)
+```
+
+and the maximum-likelihood DAG can be visualized using the following code:
+```{r fig.width=4.25, fig.height=4.25}
+  resultsCC <- ctcbn(bc, epsilon =  -1)
+  indx <- which.max(resultsCC$summary$Loglike)
+  dag_ml <- resultsCC$poset[[indx]]$sets
+  visualizeCBNModel(dag_ml)
+```
+
+### Modeling erroneous data
 The **`genotypeMatrixMutator`** function generates a modified genotype matrix (`gMatMut`) by subjecting the original  genotype matrix (`gMat`) to false-positive and false-negative error rates of **0.3** and **0.2**, respectively:
 
 ```{r}
@@ -129,6 +146,7 @@ bc <- Spock$new(
 resultsCMut <- ctcbnSingle(bc)
 ```
 
+### Using the original .pat and .poset formats as input files
 Note that if the posets and genotype data are stored in the original format needed in the C implementation of the CBN models, you can preprocess those files using **`readPoset`** and **`readPattern`** functions in the CBN2Path package. You can see an example below, where the number of mutations is **10**:
 
 ```{r}
@@ -141,6 +159,8 @@ bc <- Spock$new(
 resultsC2 <- ctcbnSingle(bc)
 ```
 
+
+### Simultaneous analysis of a list of posets
 Finally, you can obtain and store the results using a list of posets (instead of a single poset) as the input of the model using the **`ctcbn`** function. In the example below, we will consider the set of all potential (transitively-closed) DAGs of size four (219 unique posets) as our list of posets that we use as the input of the `ctcbn` function:
 
 ```{r message=FALSE}
@@ -162,6 +182,7 @@ You can obtain the log likelihood corresponding to each poset as follows:
 logLik <- sapply(resultsC3, \(x) x$summary["Loglike"])
 ```
 
+
 Below, you can see that the maximum-likelihood poset according to the CT-CBN model in this example is the empty poset.
 
 ```{r}
@@ -169,12 +190,167 @@ indx <- which.max(logLik)
 mlPosetC <- posets[[indx]]
 ```
 
+
 ```{r fig.width=4.25, fig.height=4.25}
 visualizeCBNModel(mlPosetC)
 ```
 
+### Unit tests
+
+
+
+### Modeling larger number of mutations
+
+So far we have focused on genotypes with four mutations, but the model can also handle larger genotypes. In the following example, we genotype the 414 "TCGA-BLCA" samples based on a set of six genes which includes two additional genes ("RB1" and "EP300") on top of the four genes used in the above examples ("TP53", "ARID1A", "KDM6A", "PIK3CA").    
+
+```{r message=FALSE}
+# Specifying the genes
+genes6 <- c("TP53","ARID1A","KDM6A","PIK3CA","RB1","EP300")
+
+# Generating the genotype matrices
+gMat6 <- generateTCGAMatrix(rawData, genes6)
+```
+
+We train the CT-CBN model using a DAG with six nodes as follows: 
+
+```{r}
+# The poset
+dag6 <- matrix(c(1, 1, 1, 1, 4, 5, 2, 3, 4, 5, 3, 6), 6, 2)
+
+# The genotype matrix: 
+# gMat, which was generated using the generateTCGAMatrix function (see above). 
+
+# Preparing input of the ct-cbn/h-cbn methods
+bc6 <- Spock$new(
+     poset = dag6,
+     numMutations = 6,
+     genotypeMatrix = gMat6
+)
+
+# Running the ct-cbn model
+resultsC6 <- ctcbnSingle(bc6)
+```
+
+Similarly, the associated lambda parameters and the corresponding log likelihood can be obtained as:
+```{r}
+mlLambda6 <- resultsC6$lambda
+logLikelihood6 <- resultsC6$summary["Loglike"]
+```
+
+The directed acyclic graph representation of the input poset can also be visualized using the **`visualizeCBNModel`** function as follows:
+```{r fig.width=4.25, fig.height=4.25}
+visualizeCBNModel(dag6)
+```
+
+and the maximum-likelihood DAG can be visualized using the following code:
+```{r fig.width=4.25, fig.height=4.25}
+  resultsCC6 <- ctcbn(bc6, epsilon =  -1)
+  indx <- which.max(resultsCC6$summary$Loglike)
+  dag_ml6 <- resultsCC6$poset[[indx]]$sets
+  visualizeCBNModel(dag_ml6)
+```
+
+### Pathway quantification
+For a given genotype matrix, the pathway probability distribution under the CT-CBN model can be quantified using the **pathProbCTCBN** function.
+This is a generic function, which operates on a genotype matrix of a given dimension. For genotype matrices with 4 columns it calls the **pathProbQuartetCTCBN** function and for those with larger than 4 columns, it calls the **pathProbGeneralCTCBN**. Both of these functions use the **pathProbCBN** as a core function, which uses a given DAG, lambda values, and the number of mutations as inputs.   
+
+In the example below, the pathway probability distributions (probC4 and probC6) for two genotype matrices (gMat4 and gMat6) corresponding respectively to 4 and 6 genes are calculated. Similarly, after subjecting these matrices to false postive and false negative errors, the probability distributions (probC4Mut and probC6Mut) for the resulting genotype matrices (gMatMut4 and gMatMut6) are calculated.
+
+```{r message=FALSE}
+# Specifying the genes
+genes4 <- c("TP53","ARID1A","KDM6A","PIK3CA")
+genes6 <- c("TP53","ARID1A","KDM6A","PIK3CA","RB1","EP300")
+
+# Generating the genotype matrices
+gMat4 <- generateTCGAMatrix(rawData, genes4)
+gMat6 <- generateTCGAMatrix(rawData, genes6)
+
+# Generating Erroneous data
+gMatMut4 <- genotypeMatrixMutator(gMat4, 0.3, 0.2)
+gMatMut6 <- genotypeMatrixMutator(gMat6, 0.3, 0.2)
+
+# Pathway probability quantification
+probC4 <- pathProbCTCBN(gMat4)
+probC4Mut <- pathProbCTCBN(gMatMut4)
+
+probC6 <- pathProbCTCBN(gMat6)
+probC6Mut <- pathProbCTCBN(gMatMut6)
+```
+
+
+### Pathway visualization
+The 24 pathways of length 4 and their associated probabilities can be visualized using the **`visualizeProbabilities`** function. In the figures below, you can compare the pathway probability distributions (quantified using CT-CBN model) before and after errors:
+
+```{r}
+visualizeProbabilities(probC4)
+visualizeProbabilities(probC4Mut)
+```
+
+Alternatively, we can also visualize the pathways with gene names and their probability distributions as follows:
+
+```{r}
+visualizeProbabilities(probC4, geneNames = genes4)
+visualizeProbabilities(probC4Mut, geneNames = genes4)
+```
+
+However, making similar visualizations for longer pathways is not straightforward.
+
+
+### Pathway analysis
+We can compare the pathway probabilities before and after errors  using the Jensen-Shannon Divergence, which is implemented in the **`jensenShannonDivergence`** function.
+
+```{r}
+jsdC4 <- jensenShannonDivergence(probC4, probC4Mut)
+jsdC6 <- jensenShannonDivergence(probC6, probC6Mut)
+jsdC4
+jsdC6
+```
+
+We can also quantify the predictability for a given pathway probability distribution as described in [6] using the **`predictability`** function. We can see that the predictability after errors drops substantially under CT-CBN:
+
+```{r}
+predC4 <- predictability(probC4, 4)
+predC4Mut <- predictability(probC4Mut, 4)
+predC4
+predC4Mut
+predC4 - predC4Mut
+
+predC6 <- predictability(probC6, 6)
+predC6Mut <- predictability(probC6Mut, 6)
+predC6
+predC6Mut
+predC6 - predC6Mut
+```
+
+
+Finally, we can compute the pathway compatibility scores for a given genotype matrix using the `pathwayCompatibility` function as follows:
+
+```{r}
+pathwayC4 <- pathwayCompatibility(gMat4)
+pathwayC4Mut <- pathwayCompatibility(gMatMut4)
+
+pathwayC6 <- pathwayCompatibility(gMat6)
+pathwayC6Mut <- pathwayCompatibility(gMatMut6)
+```
+
+The Spearman's correlation coefficient between the pathway compatibilities and their corresponding pathway probabilities can be quantified as follows:
+
+```{r}
+rhoC4 <- cor(pathwayC4, probC4, method = "spearman")
+rhoC4Mut <- cor(pathwayC4Mut, probC4Mut, method = "spearman")
+rhoC4
+rhoC4Mut
+
+rhoC6 <- cor(pathwayC6, probC6, method = "spearman")
+rhoC6Mut <- cor(pathwayC6Mut, probC6Mut, method = "spearman")
+rhoC6
+rhoC6Mut
+```
+
+
 ## The H-CBN model
 
+### Executing the model
 The input/output structure of the H-CBN model (**`hcbnSingle`** and **`hcbn`**) [3] is exactly the same as in the CT-CBN model (**`ctcbnSingle`** and **`ctcbn`**) described above.
 
 ```{r}
@@ -191,6 +367,7 @@ bc <- Spock$new(
 resultsH <- hcbnSingle(bc)
 ```
 
+### Parameter estimation
 The Lambda parameters and the corresponding log likelihood can be obtained as:
 
 ```{r}
@@ -198,6 +375,8 @@ mlLambdaH <- resultsH$lambda
 logLikelihoodH <- resultsH$summary["Loglike"]
 ```
 
+
+### Modeling erroneous data
 You can also rerun the h-cbn model using the mutated genotype matrix as follows:
 
 ```{r}
@@ -213,6 +392,7 @@ bc <- Spock$new(
 resultsHMut <- hcbnSingle(bc)
 ```
 
+### Using the original .pat and .poset formats as input files
 Again the poset and genotype files stored in the original formats can be processed using **`readPoset`** and **`readPattern`** functions in the CBN2Path package.
 
 ```{r}
@@ -225,6 +405,8 @@ bc <- Spock$new(
 resultsH2 <- hcbnSingle(bc)
 ```
 
+
+### Simultaneous analysis of a list of posets
 Finally, you can obtain and store the results using a list of posets (instead of a single poset) as the input of the model using the **`hcbn`** function.
 
 ```{r message=FALSE}
@@ -244,6 +426,7 @@ You can obtain the log likelihood corresponding to each poset as follows:
 logLikH <- sapply(resultsH3, \(x) x$summary["Loglike"])
 ```
 
+### Poset visualization
 Below, you can see that in this example, the maximum-likelihood poset based on H-CBN contains an edge in contrast to the CT-CBN model, which outputs an empty poset as the MLE poset:
 
 ```{r}
@@ -251,209 +434,344 @@ indx <- which.max(logLikH)
 mlPosetH <- posets[[indx]]
 ```
 
-
 ```{r fig.width=4.25, fig.height=4.25}
 visualizeCBNModel(mlPosetH)
 ```
 
-## Analysis of cancer progression pathways
 
-One of the important feature of the CBN2Path package is its emphasis on mutational pathway analyses and modeling. In this section, we will work with a set of functions that enable quantification, analysis and visualization of the mutational pathways.
+### Unit tests
 
-There are two approaches to quantify the pathway probabilities:
 
-i)  The first approach is to use the output of the ct-cbn or h-cbn methods (namely the estimated lambda parameters and the inferred ML poset) as input of the **`pathProbCBN`** function. This method is generic as it can be used for every number of mutations.
 
-ii) The second approach works only for mutational quartets (**n=4**) and uses the genotypic data directly as the input. In this setting, each CBN model has its own pathway quantification functions: **`pathProbQuartetCTCBN`**, **`pathProbQuartetHCBN`**, **`pathProbQuartetRCBN`**, and **`pathProbQuartetBCBN`**.
-
-As examples for the first approach, let's use the `resultsC2` and `resultsH2` that we obtained in the previous section by learning respectively, ct-cbn and h-cbn models on genotypic data with **n=10** mutations. First, we need to obtain the estimated lambda parameters and the inferred DAG and then use them as the input of the **`pathProbCBN`** function as follows:
-
-```{r,eval=FALSE}
-lambdaC <- as.numeric(resultsC2$lambda)
-lambdaH <- as.numeric(resultsH2$lambda)
-dagC <- resultsC2$poset$sets
-dagH <- resultsH2$poset$sets
-
-probC <- pathProbCBN(dagC, lambdaC, 10)
-probH <- pathProbCBN(dagH, lambdaH, 10)
-```
-
-Note that in the above code, probabilities of 10!=3,628,800 pathways need to be calculated, which is extremely time-consuming, so we have not executed this chunk of the code.
-
-Now, let's try the second approach using both the `gMat` and `gMatMut` genotype matrices. Note that in these functions, the number of columns in the input genotype matrix must always be four.
+### Modeling larger number of mutations
+So far we have focused on genotypes with four mutations, but the model can also handle larger genotypes. In the following example, we have genotyped the 414 "TCGA-BLCA" samples based on a set of six genes which includes two additional genes ("RB1" and "EP300") on top of the four genes used in the above examples ("TP53", "ARID1A", "KDM6A", "PIK3CA").    
 
 ```{r message=FALSE}
-probC1 <- pathProbQuartetCTCBN(gMat)
-probC2 <- pathProbQuartetCTCBN(gMatMut)
+# Specifying the genes
+genes6 <- c("TP53","ARID1A","KDM6A","PIK3CA","RB1","EP300")
 
-probH1 <- pathProbQuartetHCBN(gMat)
-probH2 <- pathProbQuartetHCBN(gMatMut)
+# Generating the genotype matrices
+gMat6 <- generateTCGAMatrix(rawData, genes6)
 ```
 
-You can visualize the 24 pathways and their associated probabilities using **`visualizeProbabilities`** function. In the figures below, you can compare the pathway probability distributions (quantified using CT-CBN model) before and after errors:
+We train the H-CBN model using a DAG with six nodes as follows: 
 
 ```{r}
-visualizeProbabilities(probC1)
-visualizeProbabilities(probC2)
+# The poset
+dag6 <- matrix(c(1, 1, 1, 1, 4, 5, 2, 3, 4, 5, 3, 6), 6, 2)
+
+# The genotype matrix: 
+# gMat, which was generated using the generateTCGAMatrix function (see above). 
+
+# Preparing input of the ct-cbn/h-cbn methods
+bh6 <- Spock$new(
+     poset = dag6,
+     numMutations = 6,
+     genotypeMatrix = gMat6
+)
+
+# Running the h-cbn model
+resultsH6 <- hcbnSingle(bh6)
 ```
 
-You can see before adding errors (`probC1`), only four pathways are feasible with non-zero probabilities, but in the presence of error (`probC2`) all pathways are feasible and so the probability is more uniformly distributed among the pathways.
-
-We can now visualize the pathways with gene names and their probability distributions (`probC2`) as follows:
-
+Similarly, the associated Lambda parameters and the corresponding log likelihood can be obtained as:
 ```{r}
-visualizeProbabilities(probC2, geneNames = genes)
+mlLambda6 <- resultsH6$lambda
+logLikelihood6 <- resultsH6$summary["Loglike"]
 ```
 
-Similarly, in the figures below, we can compare the pathway probability distributions (quantified using H-CBN model) before (`probH1`) and after errors (`probH2`):
-
-```{r}
-visualizeProbabilities(probH1)
-visualizeProbabilities(probH2)
+and the maximum-likelihood DAG can be visualized using the following code:
+```{r fig.width=4.25, fig.height=4.25}
+  resultsHH6 <- hcbnSingle(bh6, anneal = TRUE, temp = 1, annealingSteps = 10000)
+  dagH6<-resultsHH6$poset$sets
+  if (sum(is.na(dagH6)) > 0){dagH6 <- matrix(0, 0, 0)}
+  visualizeCBNModel(dagH6)
 ```
 
-We can see that under the H-CBN model, the pathway probabilities before and after errors stay more similar than what we observed under the CT-CBN model. We can formally quantify to what extent the two probability distribution differ using the Jensen-Shannon Divergence (JSD; implemented as **`jensenShannonDivergence`** function).
 
-```{r}
-jsdC <- jensenShannonDivergence(probC1, probC2)
-jsdH <- jensenShannonDivergence(probH1, probH2)
-jsdC
-jsdH
-```
+### Pathway quantification
+For a given genotype matrix, the pathway probability distribution under the H-CBN model can be quantified using the **pathProbHCBN** function.
+This is a generic function, which operates on a genotype matrix of a given dimension. For genotype matrices with 4 columns it calls the **pathProbQuartetHCBN** function and for those with larger than 4 columns, it calls the **pathProbGeneralHCBN**. Both of these functions use the **pathProbCBN** as a core function, which uses a given DAG, lambda values, and the number of mutations as inputs.   
 
-We can also quantify the predictability for a given pathway probability distribution as described in [7] using the **`predictability`** function. We can see that the predictability after errors drops substantially under CT-CBN:
-
-```{r}
-predC1 <- predictability(probC1, 4)
-predC2 <- predictability(probC2, 4)
-predC1
-predC2
-predC1 - predC2
-```
-
-In contrast, under H-CBN, the predictability after errors, even gets slightly higher than the one obtained in the error-free setting:
-
-```{r}
-predH1 <- predictability(probH1, 4)
-predH2 <- predictability(probH2, 4)
-predH1
-predH2
-predH1 - predH2
-```
-
-Finally, we can compute the pathway compatibility scores both for `gMat` and `gMatMut`genotype matrices using the`pathwayCompatibility` function as follows:
-
-```{r}
-pathwayC1 <- pathwayCompatibility(gMat)
-pathwayC2 <- pathwayCompatibility(gMatMut)
-```
-
-The Spearman's correlation coefficient between the pathway compatibility and the pathway probabilities quantified under CT-CBN or H-CBN can be quantified as follows:
-
-```{r}
-rhoC1 <- cor(pathwayC1, probC1, method = "spearman")
-rhoC2 <- cor(pathwayC2, probC2, method = "spearman")
-rhoC1
-rhoC2
-rhoH1 <- cor(pathwayC1, probH1, method = "spearman")
-rhoH2 <- cor(pathwayC2, probH2, method = "spearman")
-rhoH1
-rhoH2
-```
-
-## The R-CBN algorithm
-
-The R-CBN algorithm [5] for quantifying pathway probability distributions is implemented in the **`pathProbQuartetRCBN`** function, whose input/output structure is similar to what we described above for the CT-CBN and H-CBN. However, there are multiple functions, which are called inside the **`pathProbQuartetRCBN`** function, and so the user do not need to directly work with (e.g. **`pathNormalization`**, **`pathwayWeightingRCBN`**, **`edgeMarginalized`**, **`pathEdgeMapper`**, and **`posetWeightingRCBN`**).
-
-The **`pathProbQuartetRCBN`** function also receives a four-column binary genotype matrix as the only input, and outputs the corresponding pathway probability distribution. Let's quantify the pathway probability distributions before and after adding errors:
+In the example below, the pathway probability distributions (probH4 and probH6) for two genotype matrices (gMat4 and gMat6) corresponding respectively to 4 and 6 genes are calculated. Similarly, after subjecting these matrices to false postive and false negative errors, the probability distributions (probH4Mut and probH6Mut) for the resulting genotype matrices (gMatMut4 and gMatMut6) are calculated.
 
 ```{r message=FALSE}
-probR1 <- pathProbQuartetRCBN(gMat)
-probR2 <- pathProbQuartetRCBN(gMatMut)
+# Specifying the genes
+genes4 <- c("TP53","ARID1A","KDM6A","PIK3CA")
+genes6 <- c("TP53","ARID1A","KDM6A","PIK3CA","RB1","EP300")
+
+# Generating the genotype matrices
+gMat4 <- generateTCGAMatrix(rawData, genes4)
+gMat6 <- generateTCGAMatrix(rawData, genes6)
+
+# Generating Erroneous data
+gMatMut4 <- genotypeMatrixMutator(gMat4, 0.3, 0.2)
+gMatMut6 <- genotypeMatrixMutator(gMat6, 0.3, 0.2)
+
+# Pathway probability quantification
+probH4 <- pathProbHCBN(gMat4)
+probH4Mut <- pathProbHCBN(gMatMut4)
+
+probH6 <- pathProbHCBN(gMat6)
+probH6Mut <- pathProbHCBN(gMatMut6)
 ```
 
-In the figures below, you can compare the pathway probability distributions (quantified using R-CBN model) before and after errors:
+
+### Pathway visualization
+The 24 pathways of length 4 and their associated probabilities can be visualized using the **`visualizeProbabilities`** function. In the figures below, you can compare the pathway probability distributions (quantified using H-CBN model) before and after errors:
 
 ```{r}
-visualizeProbabilities(probR1)
-visualizeProbabilities(probR2)
+visualizeProbabilities(probH4)
+visualizeProbabilities(probH4Mut)
 ```
 
-Similar to what we described before, the Jensen-Shannon Divergence between the two distributions can be quantified as:
+Alternatively, we can also visualize the pathways with gene names and their probability distributions as follows:
 
 ```{r}
-jsdR <- jensenShannonDivergence(probR1, probR2)
-jsdR
+visualizeProbabilities(probH4, geneNames = genes4)
+visualizeProbabilities(probH4Mut, geneNames = genes4)
 ```
 
-You can see that the JDS value under R-CBN in this example (**0.05**), is considerably smaller than those of CT-CBN (**0.41**) and H-CBN (**0.31**).
+However, making similar visualizations for longer pathways is not straightforward.
 
-The predictability values can also be compared as follows:
+
+### Pathway analysis
+We can compare the pathway probabilities before and after errors using the Jensen-Shannon Divergence, which is implemented in the **`jensenShannonDivergence`** function.
 
 ```{r}
-predR1 <- predictability(probR1, 4)
-predR2 <- predictability(probR2, 4)
-predR1
-predR2
-predR1 - predR2
+jsdH4 <- jensenShannonDivergence(probH4, probH4Mut)
+jsdH6 <- jensenShannonDivergence(probH6, probH6Mut)
+jsdH4
+jsdH6
 ```
 
-Finally, the Spearman's correlation coefficient between the pathway compatibility and the pathway probabilities quantified under R-CBN can be quantified as follows:
+We can also quantify the predictability for a given pathway probability distribution as described in [6] using the **`predictability`** function:
 
 ```{r}
-rhoR1 <- cor(pathwayC1, probR1, method = "spearman")
-rhoR2 <- cor(pathwayC2, probR2, method = "spearman")
-rhoR1
-rhoR2
+predH4 <- predictability(probH4, 4)
+predH4Mut <- predictability(probH4Mut, 4)
+predH4
+predH4Mut
+predH4 - predH4Mut
+
+predH6 <- predictability(probH6, 6)
+predH6Mut <- predictability(probH6Mut, 6)
+predH6
+predH6Mut
+predH6 - predH6Mut
 ```
 
-## The B-CBN method
 
-The workflow for the B-CBN algorithm [4], which is implemented in the **`pathProbQuartetBCBN`** function, is also similar to that of R-CBN.
+Finally, we can compute the pathway compatibility scores for a given genotype matrix using the `pathwayCompatibility` function as follows:
 
-The **`pathProbQuartetBCBN`** function also receives a four-column binary genotype matrix as the only input, and outputs the corresponding pathway probability distribution. Again, let's quantify the pathway probability distributions before and after the errors:
+```{r}
+pathwayH4 <- pathwayCompatibility(gMat4)
+pathwayH4Mut <- pathwayCompatibility(gMatMut4)
 
-```{r, warning=FALSE, results='hide',eval=FALSE}
-probB1 <- pathProbQuartetBCBN(gMat)
-probB2 <- pathProbQuartetBCBN(gMatMut)
+pathwayH6 <- pathwayCompatibility(gMat6)
+pathwayH6Mut <- pathwayCompatibility(gMatMut6)
 ```
 
-In the figures below, you can compare the pathway probability distributions (quantified using B-CBN model) before and after errors:
+The Spearman's correlation coefficient between the pathway compatibilities and their corresponding pathway probabilities can be quantified as follows:
 
-```{r,eval=FALSE}
-visualizeProbabilities(probB1)
-visualizeProbabilities(probB2)
+```{r}
+rhoH4 <- cor(pathwayH4, probH4, method = "spearman")
+rhoH4Mut <- cor(pathwayH4Mut, probH4Mut, method = "spearman")
+rhoH4
+rhoH4Mut
+
+rhoH6 <- cor(pathwayH6, probH6, method = "spearman")
+rhoH6Mut <- cor(pathwayH6Mut, probH6Mut, method = "spearman")
+rhoH6
+rhoH6Mut
 ```
 
-Similar to what we described before, the Jensen-Shannon Divergence between the two distributions can be quantified as:
 
-```{r,eval=FALSE}
-jsdB <- jensenShannonDivergence(probB1, probB2)
-jsdB
+## The B-CBN model
+
+### Pathway quantification
+For a given genotype matrix, the pathway probability distribution under the B-CBN model can be quantified using the **pathProbBCBN** function.
+This is a generic function, which operates on a genotype matrix of a given dimension. For genotype matrices with 4 columns it calls the **pathProbQuartetBCBN** function and for those with larger than 4 columns, it calls the **pathProbGeneralBCBN**. Both of these functions use the **pathProbCBN** as a core function, which uses a given DAG, lambda values, and the number of mutations as inputs. Furthermore, the **pathProbGeneralBCBN** calls **bcbn_mcmc**, **mat2Dag** and **binarizer** functions as well. Note that the B-CBN model utilizes the poset-specific lambda values inferred under the CT-CBN model.  
+
+In the example below, the pathway probability distributions (probB4 and probB5) for two genotype matrices (gMat4 and gMat5) corresponding respectively to 4 and 5 genes are calculated. Similarly, after subjecting these matrices to false positive and false negative errors, the probability distributions for the resulting genotype matrices are calculated.
+
+```{r, warning=FALSE, results='hide'}
+# Specifying the genes
+genes4 <- c("TP53","ARID1A","KDM6A","PIK3CA")
+genes5 <- c("TP53","ARID1A","KDM6A","PIK3CA","RB1")
+
+# Generating the genotype matrices
+gMat4 <- generateTCGAMatrix(rawData, genes4)
+gMat5 <- generateTCGAMatrix(rawData, genes5)
+
+
+# Generating Erroneous data
+set.seed(100)
+gMatMut4 <- genotypeMatrixMutator(gMat4, 0.05, 0.05)
+
+# Pathway probability quantification
+probB4 <- pathProbBCBN(gMat4)
+probB4Mut <- pathProbBCBN(gMatMut4)
+probB5 <- pathProbBCBN(gMat5)
 ```
 
-The predictability values can also be compared as follows:
 
-```{r,eval=FALSE}
-predB1 <- predictability(probB1, 4)
-predB2 <- predictability(probB2, 4)
-predB1
-predB2
-predB1 - predB2
+### Pathway visualization
+The 24 pathways of length 4 and their associated probabilities can be visualized using the **`visualizeProbabilities`** function. In the figures below, you can compare the pathway probability distributions (quantified using B-CBN model) before and after errors:
+
+```{r}
+visualizeProbabilities(probB4)
+visualizeProbabilities(probB4Mut)
 ```
 
-Finally, the Spearman's correlation coefficient between the pathway compatibility and the pathway probabilities quantified under B-CBN can be quantified as follows:
+Alternatively, we can also visualize the pathways with gene names and their probability distributions as follows:
 
-```{r,eval=FALSE}
-rhoB1 <- cor(pathwayC1, probB1, method = "spearman")
-rhoB2 <- cor(pathwayC2, probB2, method = "spearman")
-rhoB1
-rhoB2
+```{r}
+visualizeProbabilities(probB4, geneNames = genes4)
+visualizeProbabilities(probB4Mut, geneNames = genes4)
 ```
+
+However, making similar visualizations for longer pathways is not straightforward.
+
+
+### Pathway analysis
+We can compare the pathway probabilities before and after errors using the Jensen-Shannon Divergence, which is implemented in the **`jensenShannonDivergence`** function.
+
+```{r}
+jsdB4 <- jensenShannonDivergence(probB4, probB4Mut)
+jsdB4
+```
+
+We can also quantify the predictability for a given pathway probability distribution as described in [6] using the **`predictability`** function:
+
+```{r}
+predB4 <- predictability(probB4, 4)
+predB4Mut <- predictability(probB4Mut, 4)
+predB4
+predB4Mut
+predB4 - predB4Mut
+
+predB5 <- predictability(probB5, 5)
+predB5
+```
+
+
+Finally, we can compute the pathway compatibility scores for a given genotype matrix using the `pathwayCompatibility` function as follows:
+
+```{r}
+pathwayB4 <- pathwayCompatibility(gMat4)
+pathwayB4Mut <- pathwayCompatibility(gMatMut4)
+
+pathwayB5 <- pathwayCompatibility(gMat5)
+```
+
+The Spearman's correlation coefficient between the pathway compatibilities and their corresponding pathway probabilities can be quantified as follows:
+
+```{r}
+rhoB4 <- cor(pathwayB4, probB4, method = "spearman")
+rhoB4Mut <- cor(pathwayB4Mut, probB4Mut, method = "spearman")
+rhoB4
+rhoB4Mut
+
+rhoB5 <- cor(pathwayB5, probB5, method = "spearman")
+rhoB5
+```
+
+## The R-CBN model
+
+### Pathway quantification
+For a given genotype matrix with 4 columns, the pathway probability distribution under the R-CBN model can be quantified using the **pathProbQuartetRCBN** function and for those with larger than 4 columns, it is quantified using the **pathProbEnsembleRCBN**. Both of these functions use the **pathProbCBN** as a core function, which uses a given DAG, lambda values, and the number of mutations as inputs. Furthermore, the **pathProbQuartetRCBN** calls **`pathNormalization`**, **`pathwayWeightingRCBN`**, **`edgeMarginalized`**, **`pathEdgeMapper`**, and **`posetWeightingRCBN`** functions, and the **pathProbEnsembleRCBN** calls a set of additional functions including **`pathEnumerator`**, **`pathIdAssigner`**, **`pathProbAssigner`** and **`pathEnumerator`**. 
+
+In the example below, the pathway probability distributions (probR4 and probR5) for two genotype matrices (gMat4 and gMat5) corresponding respectively to 4 and 5 genes are calculated. Similarly, after subjecting these matrices to false positive and false negative errors, the probability distributions (probR4Mut and probR5Mut) for the resulting genotype matrices (gMatMut4 and gMatMut5) are calculated.
+
+```{r message=FALSE}
+# Specifying the genes
+genes4 <- c("TP53","ARID1A","KDM6A","PIK3CA")
+genes5 <- c("TP53","ARID1A","KDM6A","PIK3CA","RB1")
+
+# Generating the genotype matrices
+gMat4 <- generateTCGAMatrix(rawData, genes4)
+gMat5 <- generateTCGAMatrix(rawData, genes5)
+
+# Generating Erroneous data
+set.seed(100)
+gMatMut4 <- genotypeMatrixMutator(gMat4, 0.05, 0.05)
+
+# Pathway probability quantification (Quartets)
+probR4 <- pathProbQuartetRCBN (gMat4)
+probR4Mut <- pathProbQuartetRCBN (gMatMut4)
+
+# Pathway probability quantification (Ensemble)
+probR5 <- pathProbEnsembleRCBN(gMat5,5)
+```
+
+
+### Pathway visualization
+The 24 pathways of length 4 and their associated probabilities can be visualized using the **`visualizeProbabilities`** function. In the figures below, you can compare the pathway probability distributions (quantified using R-CBN model) before and after errors:
+
+```{r}
+visualizeProbabilities(probR4)
+visualizeProbabilities(probR4Mut)
+```
+
+Alternatively, we can also visualize the pathways with gene names and their probability distributions as follows:
+
+```{r}
+visualizeProbabilities(probR4, geneNames = genes4)
+visualizeProbabilities(probR4Mut, geneNames = genes4)
+```
+
+However, making similar visualizations for longer pathways is not straightforward.
+
+
+### Pathway analysis
+We can compare the pathway probabilities before and after errors using the Jensen-Shannon Divergence, which is implemented in the **`jensenShannonDivergence`** function.
+
+```{r}
+jsdR4 <- jensenShannonDivergence(probR4, probR4Mut)
+jsdR4
+```
+
+We can also quantify the predictability for a given pathway probability distribution as described in [6] using the **`predictability`** function:
+
+```{r}
+predR4 <- predictability(probR4, 4)
+predR4Mut <- predictability(probR4Mut, 4)
+predR4
+predR4Mut
+predR4 - predR4Mut
+
+predR5 <- predictability(probR5, 5)
+predR5
+```
+
+
+Finally, we can compute the pathway compatibility scores both for a given genotype matrix using the `pathwayCompatibility` function as follows:
+
+```{r}
+pathwayR4 <- pathwayCompatibility(gMat4)
+pathwayR4Mut <- pathwayCompatibility(gMatMut4)
+
+pathwayR5 <- pathwayCompatibility(gMat5)
+```
+
+The Spearman's correlation coefficient between the pathway compatibilities and their corresponding pathway probabilities can be quantified as follows:
+
+```{r}
+rhoR4 <- cor(pathwayR4, probR4, method = "spearman")
+rhoR4Mut <- cor(pathwayR4Mut, probR4Mut, method = "spearman")
+rhoR4
+rhoR4Mut
+
+rhoR5 <- cor(pathwayR5, probR5, method = "spearman")
+rhoR5
+```
+
+
 
 ## Analysis of fitness landscapes
 
-If we can establish a fitness landscape by directly assigning fitness to all potential genotypes, we can employ evolutionary models to compute the mutational pathway probabilities under the Strong-Selection Weak-Mutation (SSWM) assumption [7], which is implemented in the **`pathProbSSWM`** function.
+If we can establish a fitness landscape by directly assigning fitness to all potential genotypes, we can employ evolutionary models to compute the mutational pathway probabilities under the Strong-Selection Weak-Mutation (SSWM) assumption [6], which is implemented in the **`pathProbSSWM`** function.
 
 In case of 4 mutations, we will have 16 genotypes, so a fitness vector length of 16 is needed each element of which corresponds to a given genotype that can be determined by the **`generateMatrixGenotypes`** function. For example:
 
@@ -504,8 +822,6 @@ sessionInfo()
 
 [4] Sakoparnig and Beerenwinkel. Efficient sampling for Bayesian inference of conjunctive Bayesian networks. Bioinformatics, 28(18):2318–2324, September 2012. ISSN 1367-4811, 1367-4803. doi: <https://doi.org/10.1093/bioinformatics/bts433>.
 
-[5] Hosseini. Robust inference of cancer progression pathways using Conjunctive Bayesian Networks. BioRxiv, July 2025. doi: <https://doi.org/10.1101/2025.07.15.663924>.
+[5] Hosseini. Robust and scalable inference of cancer progression pathways using Conjunctive Bayesian Networks. BioRxiv, July 2025. doi: <https://doi.org/10.1101/2025.07.15.663924>.
 
-[6] Diaz-Uriarte and Herrera-Nieto. EvAM-Tools: tools for evolutionary accumulation and cancer progression models. Bioinformatics, 38(24): 5457–5459, December 2022. ISSN 1367-4803, 1367-4811. doi: <https://doi.org/10.1093/bioinformatics/btac710>.
-
-[7] Hosseini, et al. Estimating the predictability of cancer evolution. Bioinformatics, 35 (14):i389–i397, July 2019. ISSN 1367-4803, 1367-4811. doi: <https://doi.org/10.1093/bioinformatics/btz332>.
+[6] Hosseini, et al. Estimating the predictability of cancer evolution. Bioinformatics, 35 (14):i389–i397, July 2019. ISSN 1367-4803, 1367-4811. doi: <https://doi.org/10.1093/bioinformatics/btz332>.
