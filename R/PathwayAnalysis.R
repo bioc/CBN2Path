@@ -1068,8 +1068,8 @@ pathProbEnsembleRCBN <- function(pathProbs, nn, outputDir){
       }
     }
     pathProbs <- temp
-    pathProbR <- pathProbs
   }
+  pathProbR <- as.numeric(pathProbs)
   return(pathProbR)
 }
 
