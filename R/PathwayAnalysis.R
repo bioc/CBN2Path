@@ -1031,9 +1031,8 @@ pathProber<-function(pathN, pathsX, pathProbsX){
 
 #' pathProbEnsembleRCBN
 #'
-#' @param pathProbs is a matrix containing the probabilities of pathways of length 4
+#' @param gMat is a matrix containing the probabilities of pathways of length 4
 #' @param nn is the total number of genes (mutations) considered 
-#' @param outputDir full path to the directory, where the final files will be saved.
 #'
 #' @return The list of probability matrices of all sub-pathways of n, where n is between 5 and nn.
 #' @export
