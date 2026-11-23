@@ -1231,7 +1231,7 @@ mat2Dag <- function(mat, x){
 #' pathProbGeneralBCBN(gMat)
 pathProbGeneralBCBN <- function(gMat) {
   m <- dim(gMat)[2]
-  mat <- bcbn_mcmc(data = gMat, n_samples = 25000, theta = 0, epsilon = 0.05, n_chains = 4,thin = 10, Max_L = 1000, n_cores = 1)
+  mat <- bcbn(data = gMat, nSamples = 25000, theta = 0, epsilon = 0.05, nChains = 4,thin = 10, maxL = 1000, nCores = 1)
   indxS <- numeric(100000)
   for (i in 1:100000){indxS[i] <- binarizer(mat[[i]], m)}
   uu <- unique(indxS)

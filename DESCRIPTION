@@ -36,3 +36,4 @@ SystemRequirements: GNU Scientific Library (GSL)
 OS_type: unix
 Config/Bioconductor/UnsupportedPlatforms: windows
 Config/roxygen2/version: 8.1.1
+RoxygenNote: 7.3.2

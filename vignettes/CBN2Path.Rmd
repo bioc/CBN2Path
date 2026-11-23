@@ -341,11 +341,11 @@ predH2
 predH1 - predH2
 ```
 
-Finally, we can compute the pathway compatibility scores both for `gMat` and `gMatMut`genotype matrices using the`pathwayCompatibilityQuartet` function as follows:
+Finally, we can compute the pathway compatibility scores both for `gMat` and `gMatMut`genotype matrices using the`pathwayCompatibility` function as follows:
 
 ```{r}
-pathwayC1 <- pathwayCompatibilityQuartet(gMat)
-pathwayC2 <- pathwayCompatibilityQuartet(gMatMut)
+pathwayC1 <- pathwayCompatibility(gMat)
+pathwayC2 <- pathwayCompatibility(gMatMut)
 ```
 
 The Spearman's correlation coefficient between the pathway compatibility and the pathway probabilities quantified under CT-CBN or H-CBN can be quantified as follows:

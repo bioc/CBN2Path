@@ -54,73 +54,51 @@ export(transitiveClosure)
 export(visualizeCBNModel)
 export(visualizeFitnessLandscape)
 export(visualizeProbabilities)
-importFrom(BiocParallel,
-  MulticoreParam,
-  bplapply,
-  bpoptions,
-  bpprogressbar
-)
+importFrom(BiocParallel,MulticoreParam)
+importFrom(BiocParallel,bplapply)
+importFrom(BiocParallel,bpoptions)
+importFrom(BiocParallel,bpprogressbar)
 importFrom(R6,R6Class)
-importFrom(TCGAbiolinks,
-  GDCdownload,
-  GDCprepare,
-  GDCquery,
-  getGDCprojects
-)
-importFrom(coda,
-  gelman.diag,
-  mcmc,
-  mcmc.list
-)
-importFrom(cowplot,
-  draw_line,
-  ggdraw
-)
-importFrom(ggplot2,
-  aes,
-  arrow,
-  element_rect,
-  element_text,
-  geom_text,
-  ggplot,
-  ggsave,
-  ggtitle,
-  scale_fill_gradient,
-  theme,
-  theme_void,
-  unit
-)
-importFrom(ggraph,
-  circle,
-  geom_edge_link,
-  geom_node_point,
-  geom_node_text,
-  ggraph
-)
+importFrom(TCGAbiolinks,GDCdownload)
+importFrom(TCGAbiolinks,GDCprepare)
+importFrom(TCGAbiolinks,GDCquery)
+importFrom(TCGAbiolinks,getGDCprojects)
+importFrom(coda,gelman.diag)
+importFrom(coda,mcmc)
+importFrom(coda,mcmc.list)
+importFrom(cowplot,draw_line)
+importFrom(cowplot,ggdraw)
+importFrom(ggplot2,aes)
+importFrom(ggplot2,arrow)
+importFrom(ggplot2,element_rect)
+importFrom(ggplot2,element_text)
+importFrom(ggplot2,geom_text)
+importFrom(ggplot2,ggplot)
+importFrom(ggplot2,ggsave)
+importFrom(ggplot2,ggtitle)
+importFrom(ggplot2,scale_fill_gradient)
+importFrom(ggplot2,theme)
+importFrom(ggplot2,theme_void)
+importFrom(ggplot2,unit)
+importFrom(ggraph,circle)
+importFrom(ggraph,geom_edge_link)
+importFrom(ggraph,geom_node_point)
+importFrom(ggraph,geom_node_text)
+importFrom(ggraph,ggraph)
 importFrom(grDevices,rainbow)
-importFrom(graphics,
-  image,
-  par
-)
-importFrom(igraph,
-  graph.adjacency,
-  gsize,
-  topological.sort
-)
+importFrom(graphics,image)
+importFrom(graphics,par)
+importFrom(igraph,graph.adjacency)
+importFrom(igraph,gsize)
+importFrom(igraph,topological.sort)
 importFrom(magrittr,"%>%")
 importFrom(patchwork,wrap_plots)
-importFrom(rlang,
-  call2,
-  sym
-)
-importFrom(stats,
-  rbinom,
-  runif
-)
-importFrom(tidygraph,
-  activate,
-  mutate,
-  pull,
-  tbl_graph
-)
+importFrom(rlang,call2)
+importFrom(rlang,sym)
+importFrom(stats,rbinom)
+importFrom(stats,runif)
+importFrom(tidygraph,activate)
+importFrom(tidygraph,mutate)
+importFrom(tidygraph,pull)
+importFrom(tidygraph,tbl_graph)
 useDynLib(CBN2Path, .registration=TRUE)
